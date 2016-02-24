@@ -10,6 +10,7 @@ Homepage: https://github.com/liske/needrestart
 
 Package: needrestart
 Architecture: all
+Pre-Depends: dpkg (>= 1.16.0)
 Depends: ${misc:Depends},
  ${perl:Depends},
  dpkg (>= 1.16.0),
