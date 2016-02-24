@@ -13,7 +13,6 @@ Architecture: all
 Pre-Depends: dpkg (>= 1.16.0)
 Depends: ${misc:Depends},
  ${perl:Depends},
- dpkg (>= 1.16.0),
  libproc-processtable-perl,
  libsort-naturally-perl,
  libmodule-scandeps-perl,
