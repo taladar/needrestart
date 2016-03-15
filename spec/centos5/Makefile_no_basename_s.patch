@@ -1,0 +1,11 @@
+--- Makefile	2016-03-06 13:47:07.000000000 +0000
++++ Makefile_patch	2016-03-15 14:25:06.092702456 +0000
+@@ -2,7 +2,7 @@
+ 
+ all:
+ 	for po in $(wildcard *.po); do \
+-	    lang=$$(basename -s .po $$po); \
++	    lang=$$(basename $$po .po); \
+ 	    mkdir -p ../.build/$$lang/LC_MESSAGES; \
+ 	    msgfmt -o ../.build/$$lang/LC_MESSAGES/$(TEXTDOMAIN).mo $$po; \
+ 	done
