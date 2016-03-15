@@ -7,6 +7,7 @@ Group:          System/Tools
 License:        GPLv2
 URL:            https://github.com/liske/needrestart
 Source0:        https://github.com/liske/needrestart/archive/v%{version}.tar.gz 
+Patch1:         Makefile_no_basename_s.patch
 #prevent debconf from being required, there is probably a better solution than this
 AutoReqProv: no
 
@@ -18,7 +19,12 @@ Needrestart can be used to checks whether any daemons need to be restarted after
 
 %prep
 %setup -q
-
+cd po/needrestart
+%patch1
+cd ../..
+cd po/needrestart-notify
+%patch1
+cd ../..
 
 %build
 make %{?_smp_mflags}
@@ -51,8 +57,8 @@ rm -rf $RPM_BUILD_ROOT
 /usr/lib64/perl5/perllocal.pod
 /usr/lib64/perl5/vendor_perl/auto/NeedRestart/.packlist
 /usr/sbin/needrestart
-/usr/share/locale/LC_MESSAGES/needrestart-notify.mo
-/usr/share/locale/LC_MESSAGES/needrestart.mo
+/usr/share/locale/de/LC_MESSAGES/needrestart-notify.mo
+/usr/share/locale/de/LC_MESSAGES/needrestart.mo
 /usr/share/perl5/vendor_perl/NeedRestart.pm
 /usr/share/perl5/vendor_perl/NeedRestart
 /usr/share/polkit-1/actions/net.fiasko-nw.needrestart.policy
