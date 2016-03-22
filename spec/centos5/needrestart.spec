@@ -54,8 +54,8 @@ rm -rf $RPM_BUILD_ROOT
 %doc /etc/needrestart/notify.d/README.needrestart
 
 /usr/lib/needrestart
-/usr/lib64/perl5/perllocal.pod
-/usr/lib64/perl5/vendor_perl/auto/NeedRestart/.packlist
+%_libdir/perl5/perllocal.pod
+%_libdir/perl5/vendor_perl/auto/NeedRestart/.packlist
 /usr/sbin/needrestart
 /usr/share/locale/de/LC_MESSAGES/needrestart-notify.mo
 /usr/share/locale/de/LC_MESSAGES/needrestart.mo
