@@ -1,3 +1,9 @@
+needrestart (2.10-3) unstable; urgency=medium
+
+  * fixed spelling in changelog, thank you Lintian
+
+ -- Maximilian Philipps <mphilipps@saltation.de>  Mon, 7 Nov 2016 13:30:00 +0100
+
 needrestart (2.10-2) unstable; urgency=medium
 
   * added depency libintl-perl
