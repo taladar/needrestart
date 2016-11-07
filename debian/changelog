@@ -1,3 +1,9 @@
+needrestart (2.10.1-1) unstable; urgency=medium
+
+  * set tty size to 50 when we running without one
+
+ -- Maximilian Philipps <mphilipps@saltation.de>  Mon, 7 Nov 2016 17:19:00 +0100
+
 needrestart (2.10-3) unstable; urgency=medium
 
   * fixed spelling in changelog, thank you Lintian
