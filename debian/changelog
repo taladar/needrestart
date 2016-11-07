@@ -1,3 +1,9 @@
+needrestart (2.10-2) unstable; urgency=medium
+
+  * added depency libintl-perl
+
+ -- Maximilian Philipps <mphilipps@saltation.de>  Mon, 7 Nov 2016 11:46:00 +0100
+
 needrestart (2.10-1) unstable; urgency=medium
 
   * New upstream release.

@@ -19,6 +19,7 @@ Depends: ${misc:Depends},
  libmodule-scandeps-perl,
  libterm-readkey-perl,
  libmodule-find-perl,
+ libintl-perl
  xz-utils
 Suggests: needrestart-session | libnotify-bin
 Description: check which daemons need to be restarted after library upgrades
