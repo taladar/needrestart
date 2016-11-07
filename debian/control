@@ -1,0 +1,35 @@
+Source: needrestart
+Section: admin
+Priority: optional
+Maintainer: Patrick Matthäi <pmatthaei@debian.org>
+Build-Depends: debhelper (>= 9),
+ po-debconf,
+ libmodule-find-perl
+Standards-Version: 3.9.7
+Homepage: https://github.com/liske/needrestart
+
+Package: needrestart
+Architecture: all
+Pre-Depends: dpkg (>= 1.16.0)
+Depends: ${misc:Depends},
+ ${perl:Depends},
+ libproc-processtable-perl,
+ libsort-naturally-perl,
+ libmodule-scandeps-perl,
+ libterm-readkey-perl,
+ libmodule-find-perl,
+ xz-utils
+Suggests: needrestart-session | libnotify-bin
+Description: check which daemons need to be restarted after library upgrades
+ needrestart checks which daemons need to be restarted after library upgrades.
+ It is inspired by checkrestart from the debian-goodies package.
+ .
+ Features:
+  - supports (but does not require) systemd
+  - binary blacklisting (i.e. display managers)
+  - tries to detect required restarts of interpreter based daemons
+    (supports Java, Perl, Python, Ruby)
+  - tries to detect required resarts of  containers (docker, LXC)
+  - tries to detect pending kernel upgrades
+  - could be used as nagios check_command
+  - fully integrated into apt/dpkg using hooks

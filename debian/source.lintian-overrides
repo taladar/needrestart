@@ -1,0 +1,2 @@
+needrestart source: debian-watch-may-check-gpg-signature
+needrestart source: newer-standards-version

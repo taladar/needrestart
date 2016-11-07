@@ -1,0 +1,3 @@
+version=3
+https://github.com/liske/needrestart/releases \
+/liske/needrestart/archive/v(.+)\.tar\.gz
