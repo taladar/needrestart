@@ -39,6 +39,8 @@ sub new {
     }, $class;
 }
 
+sub checktty() { no autodie; return open(my $tty, '+<', '/dev/tty'); }
+
 sub wprint {
     my $self = shift;
     my $fh = shift;
@@ -47,7 +49,10 @@ sub wprint {
     my $message = shift;
 
     # workaround Debian Bug#824564 in Term::ReadKey: pass filehandle twice
-    my ($cols) = GetTerminalSize($fh, $fh);
+    # -  don't even try
+    # if we can't open a tty
+    my ($cols) = checktty()?GetTerminalSize($fh,$fh):(50);
+
     $columns = $cols if($cols);
 
     print $fh wrap($sp1, $sp2, $message);
