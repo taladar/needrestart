@@ -59,7 +59,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Fri Apr 17 2017 Matthias Hörmann <matthias.hoermann@saltation.com> - 2.10-1
+* Fri Apr 17 2017 Matthias Hoermann <matthias.hoermann@saltation.com> - 2.11-1
 - updated to 2.11
 * Tue Mar  8 2016 Maximilian Philipps <mphilipps@saltation.de> - 2.7-1
 - first created
