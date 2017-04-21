@@ -41,6 +41,10 @@ rm -rf $RPM_BUILD_ROOT
 /etc/needrestart/hook.d/90-none
 %config /etc/needrestart/needrestart.conf
 %config /etc/needrestart/notify.conf
+/etc/needrestart/notify.d/200-write
+/etc/needrestart/notify.d/400-notify-send
+/etc/needrestart/notify.d/600-mail
+%doc /etc/needrestart/notify.d/README.needrestart
 /etc/needrestart/restart.d/200-write
 /etc/needrestart/restart.d/400-notify-send
 /etc/needrestart/restart.d/600-mail
