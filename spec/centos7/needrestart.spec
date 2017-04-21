@@ -1,5 +1,5 @@
 Name:           needrestart
-Version:        2.7
+Version:        2.11
 Release:        1%{?dist}
 Summary:        daemon restarter after library updates
 
@@ -59,5 +59,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
+* Fri Apr 17 2017 Matthias Hörmann <matthias.hoermann@saltation.com> - 2.10-1
+- updated to 2.11
 * Tue Mar  8 2016 Maximilian Philipps <mphilipps@saltation.de> - 2.7-1
 - first created
