@@ -41,10 +41,10 @@ rm -rf $RPM_BUILD_ROOT
 /etc/needrestart/hook.d/90-none
 %config /etc/needrestart/needrestart.conf
 %config /etc/needrestart/notify.conf
-/etc/needrestart/notify.d/200-write 
-/etc/needrestart/notify.d/400-notify-send
-/etc/needrestart/notify.d/600-mail 
-%doc /etc/needrestart/notify.d/README.needrestart
+/etc/needrestart/restart.d/200-write
+/etc/needrestart/restart.d/400-notify-send
+/etc/needrestart/restart.d/600-mail
+%doc /etc/needrestart/restart.d/README.needrestart
 
 /usr/lib/needrestart
 /usr/lib64/perl5/perllocal.pod
@@ -52,6 +52,8 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/needrestart
 /usr/share/locale/de/LC_MESSAGES/needrestart-notify.mo
 /usr/share/locale/de/LC_MESSAGES/needrestart.mo
+/usr/share/locale/ru/LC_MESSAGES/needrestart-notify.mo
+/usr/share/locale/ru/LC_MESSAGES/needrestart.mo
 /usr/share/perl5/vendor_perl/NeedRestart.pm
 /usr/share/perl5/vendor_perl/NeedRestart
 /usr/share/polkit-1/actions/net.fiasko-nw.needrestart.policy
@@ -59,7 +61,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %changelog
-* Fri Apr 17 2017 Matthias Hoermann <matthias.hoermann@saltation.com> - 2.11-1
+* Fri Apr 21 2017 Matthias Hoermann <matthias.hoermann@saltation.com> - 2.11-1
 - updated to 2.11
 * Tue Mar  8 2016 Maximilian Philipps <mphilipps@saltation.de> - 2.7-1
 - first created
