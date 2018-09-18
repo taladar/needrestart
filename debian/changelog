@@ -1,3 +1,9 @@
+needrestart (3.3.1-1) unstable; urgency=medium
+
+  * update upstream to 3.3
+
+ -- Matthias Hörmann <mhoermann@saltation.de>  Tue, 18 Sep 2018 11:37:00 +0200
+
 needrestart (2.10.1-1) unstable; urgency=medium
 
   * set tty size to 50 when we running without one
