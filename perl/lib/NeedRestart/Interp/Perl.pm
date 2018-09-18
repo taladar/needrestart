@@ -4,7 +4,7 @@
 #   Thomas Liske <thomas@fiasko-nw.net>
 #
 # Copyright Holder:
-#   2013 - 2015 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
+#   2013 - 2018 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
 #
 # License:
 #   This program is free software; you can redistribute it and/or modify
@@ -57,7 +57,7 @@ sub source {
 	return ();
     }
     my $cwd = getcwd();
-    chdir($ptable->{cwd});
+    chdir("/proc/$pid/root/$ptable->{cwd}");
 
     # get original ARGV
     (my $bin, local @ARGV) = nr_parse_cmd($pid);
@@ -85,7 +85,7 @@ sub source {
 
     my $src = abs_path($ARGV[0]);
     chdir($cwd);
-    unless(-r $src && -f $src) {
+    unless(defined($src) && -r $src && -f $src) {
 	print STDERR "$LOGPREF #$pid: source file not found, skipping\n" if($self->{debug});
 	print STDERR "$LOGPREF #$pid:  reduced ARGV: ".join(' ', @ARGV)."\n" if($self->{debug});
 	return undef;
@@ -104,7 +104,13 @@ sub files {
 	return ();
     }
     my $cwd = getcwd();
-    chdir($ptable->{cwd});
+    chdir("/proc/$pid/root/$ptable->{cwd}");
+
+    # skip the process if the cwd is unreachable (i.e. due to mnt ns)
+    unless(getcwd()) {
+	print STDERR "$LOGPREF #$pid: process cwd is unreachable\n" if($self->{debug});
+	return ();
+    }
 
     # get original ARGV
     (my $bin, local @ARGV) = nr_parse_cmd($pid);
@@ -129,8 +135,8 @@ sub files {
 	print STDERR "$LOGPREF #$pid: could not get a source file, skipping\n" if($self->{debug});
 	return ();
     }
-    my $src = $ARGV[0];
-    unless(-r $src && -f $src) {
+    my $src = abs_path ($ARGV[0]);
+    unless(defined($src) && -r $src && -f $src) {
 	chdir($cwd);
 	print STDERR "$LOGPREF #$pid: source file not found, skipping\n" if($self->{debug});
 	print STDERR "$LOGPREF #$pid:  reduced ARGV: ".join(' ', @ARGV)."\n" if($self->{debug});
@@ -140,6 +146,7 @@ sub files {
 
     # use cached data if avail
     if(exists($cache->{files}->{(__PACKAGE__)}->{$src})) {
+	chdir($cwd);
 	print STDERR "$LOGPREF #$pid: use cached file list\n" if($self->{debug});
 	return %{ $cache->{files}->{(__PACKAGE__)}->{$src} };
     }
@@ -167,7 +174,7 @@ sub files {
     }
 
     my %ret = map {
-	my $stat = nr_stat($href->{$_}->{file});
+	my $stat = nr_stat("/proc/$pid/root/$href->{$_}->{file}");
 	$href->{$_}->{file} => ( defined($stat) ? $stat->{ctime} : undef );
     } keys %$href;
 

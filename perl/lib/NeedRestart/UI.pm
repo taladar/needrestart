@@ -4,7 +4,7 @@
 #   Thomas Liske <thomas@fiasko-nw.net>
 #
 # Copyright Holder:
-#   2013 - 2015 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
+#   2013 - 2018 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
 #
 # License:
 #   This program is free software; you can redistribute it and/or modify
@@ -48,14 +48,19 @@ sub wprint {
     my $sp2 = shift;
     my $message = shift;
 
-    # workaround Debian Bug#824564 in Term::ReadKey: pass filehandle twice
-    # -  don't even try
-    # if we can't open a tty
-    my ($cols) = checktty()?GetTerminalSize($fh,$fh):(50);
+    # only wrap output if it is a terminal
+    if (-t $fh) {
+	# workaround Debian Bug#824564 in Term::ReadKey: pass filehandle twice
+        # -  don't even try
+        # if we can't open a tty
+	my ($cols) = checktty()?GetTerminalSize($fh, $fh):(50);
+	$columns = $cols if($cols);
 
-    $columns = $cols if($cols);
-
-    print $fh wrap($sp1, $sp2, $message);
+	print $fh wrap($sp1, $sp2, $message);
+    }
+    else {
+	print $fh "$sp1$message";
+    }
 }
 
 sub progress_prep($$$) {
@@ -128,8 +133,9 @@ sub _progress_inc {
 
 sub _progress_out {
     my $self = shift;
-    
-    my ($columns) = GetTerminalSize(\*STDOUT);
+    my $columns = 80;
+
+    ($columns) = GetTerminalSize(\*STDOUT) if (-t *STDOUT);
     
     $columns -= 3;
     my $wmsg = int($columns * 0.7);
@@ -141,10 +147,11 @@ sub _progress_out {
 
 sub _progress_fin {
    my $self = shift;
+   my $columns = 80;
 
    $self->{progress}->{count} = 0;
 
-   my ($columns) = GetTerminalSize(\*STDOUT);
+   ($columns) = GetTerminalSize(\*STDOUT) if (-t *STDOUT);
 
    print $self->{progress}->{msg}, ' ' x ($columns - length($self->{progress}->{msg})), "\n";
 }
@@ -157,9 +164,19 @@ sub announce_ver {
 }
 
 
+sub announce_ucode {
+}
+
+
 sub notice($$) {
 }
 
+sub vspace {
+    my $self = shift;
+    my $fh = shift;
+
+    print $fh "\n" if(defined($fh));
+}
 
 sub command() {
    my $self = shift;

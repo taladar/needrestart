@@ -8,7 +8,7 @@
 #   Thomas Liske <thomas@fiasko-nw.net>
 #
 # Copyright Holder:
-#   2013 - 2016 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
+#   2013 - 2018 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
 #
 # License:
 #   This program is free software; you can redistribute it and/or modify
@@ -32,6 +32,7 @@ use NeedRestart;
 use NeedRestart::UI;
 use NeedRestart::Interp;
 use NeedRestart::Kernel;
+use NeedRestart::uCode;
 use NeedRestart::Utils;
 use Sort::Naturally;
 use Locale::TextDomain 'needrestart';
@@ -46,6 +47,15 @@ $Getopt::Std::STANDARD_HELP_VERSION++;
 my $LOGPREF = '[main]';
 my $is_systemd = -d qq(/run/systemd/system);
 my $is_tty = (-t *STDERR || -t *STDOUT || -t *STDIN);
+my $is_container;
+
+# check if we are inside of a container
+if (-r "/proc/1/environ") {
+    local $/;
+    open(HENV, '<', '/proc/1/environ');
+    $is_container = scalar(grep {/^container=/;} unpack("(Z*)*", <HENV>));
+    close(HENV)
+}
 
 sub HELP_MESSAGE {
     print <<USG;
@@ -67,11 +77,12 @@ Usage:
     -b		enable batch mode
     -p          enable nagios plugin mode
     -f <fe>	overwrite debconf frontend (DEBIAN_FRONTEND, debconf(7))
-    -u <ui>     use prefered UI package (-u ? shows available packages)
+    -u <ui>     use preferred UI package (-u ? shows available packages)
 
   By using the following options only the specified checks are performed:
     -k          check for obsolete kernel
     -l          check for obsolete libraries
+    -w          check for obsolete CPU microcode
 
     --help      show this help
     --version   show version information
@@ -88,7 +99,7 @@ Authors:
   Thomas Liske <thomas\@fiasko-nw.net>
 
 Copyright Holder:
-  2013 - 2016 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
+  2013 - 2018 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
 
 Upstream:
   https://github.com/liske/needrestart
@@ -106,6 +117,7 @@ our %nrconf = (
     verbosity => 1,
     hook_d => '/etc/needrestart/hook.d',
     notify_d => '/etc/needrestart/notify.d',
+    restart_d => '/etc/needrestart/restart.d',
     sendnotify => 1,
     restart => 'i',
     defno => 0,
@@ -115,17 +127,20 @@ our %nrconf = (
     blacklist_interp => [],
     blacklist_rc => [],
     blacklist_mappings => [],
-    override_rc => [],
-    override_cont => [],
+    override_rc => {},
+    override_cont => {},
     skip_mapfiles => 0,
     interpscan => 1,
     kernelhints => 1,
+    ucodehints => 1,
     q(nagios-status) => {
 	services => 1,
 	kernel => 2,
+	ucode => 2,
 	sessions => 2,
 	containers => 1,
     },
+    has_pam_systemd => 1,
 );
 
 # backup ARGV (required for Debconf)
@@ -143,7 +158,8 @@ our $opt_l;
 our $opt_p;
 our $opt_q;
 our $opt_u;
-unless(getopts('c:vr:nm:bf:klpqu:')) {
+our $opt_w;
+unless(getopts('c:vr:nm:bf:klpqu:w')) {
     HELP_MESSAGE;
     exit 1;
 }
@@ -170,16 +186,23 @@ elsif($opt_v) {
 
 # slurp config file
 print STDERR "$LOGPREF eval $opt_c\n" if($nrconf{verbosity} > 1);
-eval do { local(@ARGV, $/) = $opt_c; <>};
+eval do {
+    local $/;
+    open my $fh, $opt_c or die "ERROR: $!\n";
+    my $cfg = <$fh>;
+    close($fh);
+    $cfg;
+};
 die "Error parsing $opt_c: $@" if($@);
 
 # fallback to stdio on verbose mode
 $nrconf{ui} = qq(NeedRestart::UI::stdio) if($nrconf{verbosity} > 1);
 
 die "Hook directory '$nrconf{hook_d}' is invalid!\n" unless(-d $nrconf{hook_d} || $opt_b);
+$opt_r = $ENV{NEEDRESTART_MODE} if(!defined($opt_r) && exists($ENV{NEEDRESTART_MODE}));
 $opt_r = $nrconf{restart} unless(defined($opt_r));
 die "ERROR: Unknown restart option '$opt_r'!\n" unless($opt_r =~ /^(l|i|a)$/);
-$is_tty++ if($opt_r eq 'i' && exists($ENV{DEBIAN_FRONTEND}) && $ENV{DEBIAN_FRONTEND} eq 'noninteractive');
+$is_tty = 0 if($opt_r eq 'i' && exists($ENV{DEBIAN_FRONTEND}) && $ENV{DEBIAN_FRONTEND} eq 'noninteractive');
 $opt_r = 'l' if(!$is_tty && $opt_r eq 'i');
 
 $opt_m = $nrconf{ui_mode} unless(defined($opt_m));
@@ -189,18 +212,21 @@ $opt_r = 'l' if($opt_m eq 'e');
 $nrconf{defno}++ if($opt_n);
 $opt_b++ if($opt_p);
 
+# print version in verbose mode
+print STDERR "$LOGPREF needrestart v$NeedRestart::VERSION\n" if($nrconf{verbosity} > 1);
+
 # running mode (user or root)
 my $uid = $<;
 if($uid) {
     if($opt_p) {
-	print STDERR "UNKN - This plugin needs to be run as root!\n";
+	print "UNKN - This plugin needs to be run as root!\n";
 	exit 3;
     }
 
-    print STDERR "$LOGPREF running in user-mode\n" if($nrconf{verbosity} > 1);
+    print STDERR "$LOGPREF running in user mode\n" if($nrconf{verbosity} > 1);
 }
 else {
-    print STDERR "$LOGPREF running in root-mode\n" if($nrconf{verbosity} > 1);
+    print STDERR "$LOGPREF running in root mode\n" if($nrconf{verbosity} > 1);
 }
 
 # get current runlevel, fallback to '2'
@@ -223,9 +249,10 @@ my $ui = ($opt_b ? NeedRestart::UI->new(0) : needrestart_ui($nrconf{verbosity}, 
 die "Error: no UI class available!\n" unless(defined($ui));
 
 # enable/disable checks
-unless(defined($opt_k) || defined($opt_l)) {
+unless(defined($opt_k) || defined($opt_l) || defined($opt_w)) {
     $opt_k = ($uid ? undef : 1);
     $opt_l = 1;
+    $opt_w = ($uid ? undef : $nrconf{ucodehints});
 }
 
 sub parse_lsbinit($) {
@@ -297,13 +324,34 @@ sub parse_lsbinit($) {
     return %lsb;
 }
 
-print STDERR "$LOGPREF detected systemd\n" if($nrconf{verbosity} > 1 && $is_systemd);
+print STDERR "$LOGPREF systemd detected\n" if($nrconf{verbosity} > 1 && $is_systemd);
+print STDERR "$LOGPREF container detected\n" if($nrconf{verbosity} > 1 && $is_container);
+
+sub systemd_refuse_restart {
+    my $svc = shift;
+
+    my $systemctl = nr_fork_pipe($nrconf{verbosity} > 1, qq(systemctl), qq(show), qq(--property=RefuseManualStop), $svc);
+    my $ret = <$systemctl>;
+    close($systemctl);
+
+    if($ret && $ret =~ /^RefuseManualStop=yes/) {
+	print STDERR "$LOGPREF systemd refuses restarts of $svc\n" if($nrconf{verbosity} > 1);
+	return 1;
+    }
+
+    return 0;
+}
 
 my @systemd_restart;
 sub restart_cmd($) {
     my $rc = shift;
 
-    if($rc =~ /.+\.service$/) {
+    my $restcmd = "$nrconf{restart_d}/$rc";
+    if(-x $restcmd) {
+	print STDERR "$LOGPREF using restart.d file $rc\n" if($nrconf{verbosity} > 1);
+	($restcmd);
+    }
+    elsif($rc =~ /.+\.service$/) {
 	if($nrconf{systemctl_combine}) {
 	    push(@systemd_restart, $rc);
 	    ();
@@ -311,12 +359,6 @@ sub restart_cmd($) {
 	else {
 	    (qw(systemctl restart), $rc);
 	}
-    }
-    elsif($rc eq q(systemd manager)) {
-	(qw(systemctl daemon-reexec));
-    }
-    elsif($rc eq q(sysv init)) {
-	(qw(telinit u));
     }
     else {
 	if($is_systemd) {
@@ -350,6 +392,11 @@ my %nagios = (
     kstr => q(unknown),
     kret => 3,
     kperf => q(U),
+
+    # uCode
+    mstr => q(unknown),
+    mret => 3,
+    mperf => q(U),
 
     # services
     sstr => q(unknown),
@@ -445,13 +492,14 @@ if(defined($opt_l)) {
 			my @paths = ("/proc/$pid/map_files/$maddr", "/proc/$pid/root/$path");
 			my ($testp) = grep { -e $_; } @paths;
 			unless($testp) {
-			    unless($path =~ m@^/tmp/@ ||
+			    unless($path =~ m@^(/var)?/tmp/@ ||
 				   $path =~ m@^(/var)?/run/@ ||
 				   $nrconf{skip_mapfiles} == -1) {
 				print STDERR "$LOGPREF #$pid uses non-existing $path\n" if($nrconf{verbosity} > 1);
 				$restart++;
 				last;
 			    }
+			    next;
 			}
 
 			# get on-disk info
@@ -468,9 +516,9 @@ if(defined($opt_l)) {
 
 			# Don't compare device numbers on anon filesystems
 			# w/o a backing device (like OpenVZ's simfs).
+			my $major = (($sdev >> 8) & 0xfff) | (($sdev >> 32) & ~0xfff);
 			$mdev = "00:00"
-			    if (((($sdev >> 8) & 0xfff) |
-				 (($sdev >> 32) & ~0xfff)) == 0);
+			    if ($major == 0 || $major == 144 || $major == 145 || $major == 146);
 
 			# compare maps content vs. on-disk
 			unless($minode eq $sinode && ((grep {$mdev eq $_} @sdevs) ||
@@ -501,7 +549,7 @@ if(defined($opt_l)) {
 	next unless($restart);
 
 	# handle user sessions
-	if($ptable->{$pid}->{ttydev} ne '' && !$is_systemd) {
+	if($ptable->{$pid}->{ttydev} ne '' && (!$is_systemd || !$nrconf{has_pam_systemd})) {
 	    my $ttydev = realpath( $ptable->{$pid}->{ttydev} );
 	    print STDERR "$LOGPREF #$pid part of user session: uid=$ptable->{$pid}->{uid} sess=$ttydev\n" if($nrconf{verbosity} > 1);
 	    push(@{ $sessions{ $ptable->{$pid}->{uid} }->{ $ttydev }->{ $ptable->{$pid}->{fname} } }, $pid);
@@ -561,7 +609,7 @@ if(defined($opt_l)) {
 		# systemd manager
 		if($pid == 1 && $exe =~ m@^/lib/systemd/systemd@) {
 		    print STDERR "$LOGPREF #$pid is systemd manager\n" if($nrconf{verbosity} > 1);
-		    $restart{q(systemd manager)}++;
+		    $restart{q(systemd-manager)}++;
 		    next;
 		}
 
@@ -622,7 +670,7 @@ if(defined($opt_l)) {
 		# sysv init
 		if($pid == 1 && $exe =~ m@^/sbin/init@) {
 		    print STDERR "$LOGPREF #$pid is sysv init\n" if($nrconf{verbosity} > 1);
-		    $restart{q(sysv init)}++;
+		    $restart{q(sysv-init)}++;
 		    next;
 		}
 	    }
@@ -727,10 +775,16 @@ foreach my $rc (keys %restart) {
     delete($restart{$rc});
 }
 
-# Skip kernel stuff within containers
-if(needrestart_cont_check($nrconf{verbosity} > 1, 1, nr_readlink(1), 1)) {
-    print STDERR "$LOGPREF container detected, skipping kernel check\n" if($nrconf{verbosity} > 1);
+# Skip kernel and uCode stuff within containers
+if($is_container || needrestart_cont_check($nrconf{verbosity} > 1, 1, nr_readlink(1), 1)) {
+    print STDERR "$LOGPREF inside container, skipping kernel and microcode checks\n" if($nrconf{verbosity} > 1);
     $opt_k = undef;
+    $opt_w = undef;
+}
+
+my ($ucode_result, %ucode_vars) = (NRM_UNKNOWN);
+if(defined($opt_w)) {
+    ($ucode_result, %ucode_vars) = ($nrconf{ucodehints} || $opt_w ? nr_ucode_check($nrconf{verbosity} > 1, $ui) : ());
 }
 
 if(defined($opt_k)) {
@@ -739,37 +793,46 @@ if(defined($opt_k)) {
     if(defined($kresult)) {
 	if($opt_b) {
 	    unless($opt_p) {
-		print "NEEDRESTART-KCUR: $kvars{KVERSION}\n";
-		print "NEEDRESTART-KEXP: $kvars{EVERSION}\n" if(defined($kvars{EVERSION}));
-		print "NEEDRESTART-KSTA: $kresult\n";
+            print "NEEDRESTART-KCUR: $kvars{KVERSION}\n";
+            print "NEEDRESTART-KEXP: $kvars{EVERSION}\n" if(defined($kvars{EVERSION}));
+            print "NEEDRESTART-KSTA: $kresult\n";
 	    }
 	    else {
-		$nagios{kstr} = $kvars{KVERSION};
-		if($kresult == NRK_VERUPGRADE) {
-		    $nagios{kstr} .= "!=$kvars{EVERSION} (!)";
-		    $nagios{kret} = $nrconf{q(nagios-status)}->{kernel};
-		    $nagios{kperf} = 2;
-		}
-		elsif($kresult == NRK_ABIUPGRADE) {
-		    $nagios{kstr} .= " (!)";
-		    $nagios{kret} = $nrconf{q(nagios-status)}->{kernel};
-		    $nagios{kperf} = 1;
-		}
-		elsif($kresult == NRK_NOUPGRADE) {
-		    $nagios{kret} = 0;
-		    $nagios{kperf} = 0;
-		}
-	    }
+            $nagios{kstr} = $kvars{KVERSION};
+            if($kresult == NRK_VERUPGRADE) {
+                $nagios{kstr} .= "!=$kvars{EVERSION}";
+                $nagios{kret} = $nrconf{q(nagios-status)}->{kernel};
+                $nagios{kperf} = 2;
+            }
+            elsif($kresult == NRK_ABIUPGRADE) {
+                $nagios{kret} = $nrconf{q(nagios-status)}->{kernel};
+                $nagios{kperf} = 1;
+            }
+            elsif($kresult == NRK_NOUPGRADE) {
+                $nagios{kret} = 0;
+                $nagios{kperf} = 0;
+            }
+
+            if($nagios{kret} == 1) {
+                $nagios{kstr} .= " (!)";
+            }
+            elsif($nagios{kret} == 2) {
+                $nagios{kstr} .= " (!!)";
+            }
+        }
 	}
 	else {
 	    if($kresult == NRK_NOUPGRADE) {
-		$ui->notice(($kvars{ABIDETECT} ? __('Running kernel seems to be up-to-date.') : __('Running kernel seems to be up-to-date (ABI upgrades are not detected).')))
-		    unless($opt_m eq 'e');
+            unless($opt_m eq 'e') {
+                $ui->vspace();
+                $ui->notice(($kvars{ABIDETECT} ? __('Running kernel seems to be up-to-date.') : __('Running kernel seems to be up-to-date (ABI upgrades are not detected).')))
+            }
 	    }
 	    elsif($kresult == NRK_ABIUPGRADE) {
 		push(@easy_hints, __ 'an outdated kernel image') if($opt_m eq 'e');
 
 		if($nrconf{kernelhints} < 0) {
+            $ui->vspace();
 		    $ui->notice(__x(
 				    'The currently running kernel version is {kversion} and there is an ABI compatible upgrade pending.',
 				    kversion => $kvars{KVERSION},
@@ -783,6 +846,7 @@ if(defined($opt_k)) {
 		push(@easy_hints, __ 'an outdated kernel image') if($opt_m eq 'e');
 
 		if($nrconf{kernelhints} < 0) {
+            $ui->vspace();
 		    $ui->notice(__x(
 				    'The currently running kernel version is {kversion} which is not the expected kernel version {eversion}.',
 				    kversion => $kvars{KVERSION},
@@ -794,14 +858,66 @@ if(defined($opt_k)) {
 		}
 	    }
 	    else {
-		$ui->notice(__ 'Failed to retrieve available kernel versions.');
+            $ui->vspace();
+            $ui->notice(__ 'Failed to retrieve available kernel versions.');
 	    }
 	}
     }
 }
 
+if($opt_w) {
+	if($opt_b) {
+        unless($opt_p) {
+            print "NEEDRESTART-UCSTA: $ucode_result\n";
+            if($ucode_result != NRM_UNKNOWN) {
+                print "NEEDRESTART-UCCUR: $ucode_vars{CURRENT}\n";
+                print "NEEDRESTART-UCEXP: $ucode_vars{AVAIL}\n";
+            }
+	    }
+        else {
+            if($ucode_result == NRM_OBSOLETE) {
+                $nagios{mstr} = "OBSOLETE";
+                $nagios{mret} = $nrconf{q(nagios-status)}->{ucode};
+                $nagios{mperf} = 1;
+            }
+            elsif($ucode_result == NRM_CURRENT) {
+                $nagios{mstr} = "CURRENT";
+                $nagios{mret} = 0;
+                $nagios{mperf} = 0;
+            }
+
+            if($nagios{mret} == 1) {
+                $nagios{mstr} .= " (!)";
+            }
+            elsif($nagios{mret} == 2) {
+                $nagios{mstr} .= " (!!)";
+            }
+        }
+	}
+	else {
+	    if($ucode_result == NRM_CURRENT) {
+            unless($opt_m eq 'e') {
+                $ui->vspace();
+                $ui->notice(__('The processor microcode seems to be up-to-date.'));
+            }
+	    }
+	    elsif($ucode_result == NRM_OBSOLETE) {
+            push(@easy_hints, __ 'outdated processor microcode') if($opt_m eq 'e');
+
+            if($nrconf{ucodehints}) {
+                $ui->announce_ucode(%ucode_vars);
+            }
+	    }
+	    else {
+            $ui->vspace();
+            $ui->notice(__ 'Failed to check for processor microcode upgrades.');
+	    }
+	}
+}
+
 if(defined($opt_l) && !$uid) {
     ## SERVICES
+    $ui->vspace();
     unless(scalar %restart) {
 	$ui->notice(__ 'No services need to be restarted.') unless($opt_b || $opt_m eq 'e');
 	if($opt_p) {
@@ -816,14 +932,22 @@ if(defined($opt_l) && !$uid) {
 	}
 	elsif($opt_b || $opt_r ne 'i') {
 	    my @skipped_services;
+	    my @refused_services;
 
 	    $ui->notice(__ 'Services to be restarted:') if($opt_r eq 'l');
 	    $ui->notice(__ 'Restarting services...') if($opt_r eq 'a');
 	    if($opt_p) {
-		$nagios{sstr} = (scalar keys %restart).' (!)';
-		$nagios{sret} = $nrconf{q(nagios-status)}->{services};
-		$nagios{sperf} = (scalar keys %restart);
-	    }
+            $nagios{sstr} = (scalar keys %restart);
+            $nagios{sret} = $nrconf{q(nagios-status)}->{services};
+            $nagios{sperf} = (scalar keys %restart);
+
+            if($nagios{sret} == 1) {
+                $nagios{sstr} .= " (!)";
+            }
+            elsif($nagios{sret} == 2) {
+                $nagios{sstr} .= " (!!)";
+            }
+        }
 	    
 	    foreach my $rc (sort { lc($a) cmp lc($b) } keys %restart) {
 		# always combine restarts in one systemctl command
@@ -831,6 +955,12 @@ if(defined($opt_l) && !$uid) {
 
 		if($opt_b) {
 		    print "NEEDRESTART-SVC: $rc\n" unless($opt_p);
+		    next;
+		}
+
+		# record service which can not be restarted
+		if($is_systemd && systemd_refuse_restart($rc)) {
+		    push(@refused_services, $rc);
 		    next;
 		}
 
@@ -867,7 +997,8 @@ if(defined($opt_l) && !$uid) {
 
 	    @systemd_restart = ();
 	    if($#skipped_services > -1) {
-		$ui->notice(__ 'Services being skipped:');
+		$ui->vspace();
+		$ui->notice(__ 'Service restarts being deferred:');
 		foreach my $rc (sort @skipped_services) {
 		    my @cmd = restart_cmd($rc);
 		    $ui->command(join(' ', '', @cmd)) if($#cmd > -1);
@@ -878,13 +1009,42 @@ if(defined($opt_l) && !$uid) {
 		    $ui->command(join(' ', '', @cmd));
 		}
 	    }
+
+	    # report services restarts refused by systemd
+	    if($#refused_services > -1) {
+		$ui->vspace();
+		$ui->notice(__ 'Service restarts being refused by systemd:');
+		foreach my $rc (sort @refused_services) {
+		    $ui->command(qq( $rc));
+		}
+	    }
 	}
 	else {
 	    my $o = 0;
 	    my @skipped_services = keys %restart;
 
+	    # filter service units which are refused to be restarted
+	    my @refused_services;
+	    my %rs = map {
+		my $rc = $_;
+
+		if($is_systemd) {
+		    if(systemd_refuse_restart($rc)) {
+			push(@refused_services, $rc);
+			@skipped_services = grep { $_ ne $rc; } @skipped_services;
+			();
+		    }
+		    else {
+			($rc => 1);
+		    }
+		}
+		else {
+		    ($rc => 1);
+		}
+	    } keys %restart;
+
 	    $ui->notice(__ 'Restarting services...');
-	    $ui->query_pkgs(__('Services to be restarted:'), $nrconf{defno}, \%restart, $nrconf{override_rc},
+	    $ui->query_pkgs(__('Services to be restarted:'), $nrconf{defno}, \%rs, $nrconf{override_rc},
 			    sub {
 				# always combine restarts in one systemctl command
 				local $nrconf{systemctl_combine} = 1;
@@ -910,7 +1070,7 @@ if(defined($opt_l) && !$uid) {
 
 	    @systemd_restart = ();
 	    if($#skipped_services > -1) {
-		$ui->notice(__ 'Services being skipped:');
+		$ui->notice(__ 'Service restarts being deferred:');
 		foreach my $rc (sort @skipped_services) {
 		    my @cmd = restart_cmd($rc);
 		    $ui->command(join(' ', '', @cmd)) if($#cmd > -1);
@@ -921,11 +1081,20 @@ if(defined($opt_l) && !$uid) {
 		    $ui->command(join(' ', '', @cmd));
 		}
 	    }
+
+	    # report services restarts refused by systemd
+	    if($#refused_services > -1) {
+		$ui->notice(__ 'Service restarts being refused by systemd:');
+		foreach my $rc (sort @refused_services) {
+		    $ui->command(qq( $rc));
+		}
+	    }
 	}
     }
 
 
     ## CONTAINERS
+    $ui->vspace();
     @systemd_restart = ();
     my %conts = needrestart_cont_get($nrconf{verbosity} > 1);
     unless(scalar %conts) {
@@ -946,9 +1115,16 @@ if(defined($opt_l) && !$uid) {
 	    $ui->notice(__ 'Containers to be restarted:') if($opt_r eq 'l');
 	    $ui->notice(__ 'Restarting containers...') if($opt_r eq 'a');
 	    if($opt_p) {
-		$nagios{cstr} = (scalar keys %conts).' (!)';
-		$nagios{cret} = $nrconf{q(nagios-status)}->{containers};
-		$nagios{cperf} = (scalar keys %conts);
+            $nagios{cstr} = (scalar keys %conts);
+            $nagios{cret} = $nrconf{q(nagios-status)}->{containers};
+            $nagios{cperf} = (scalar keys %conts);
+
+            if($nagios{cret} == 1) {
+                $nagios{cstr} .= " (!)";
+            }
+            elsif($nagios{cret} == 2) {
+                $nagios{cstr} .= " (!!)";
+            }
 	    }
 
 	    foreach my $cont (sort { lc($a) cmp lc($b) } keys %conts) {
@@ -978,7 +1154,7 @@ if(defined($opt_l) && !$uid) {
 	    }
 
 	    if($#skipped_containers > -1) {
-		$ui->notice(__ 'Containers being skipped:');
+		$ui->notice(__ 'Container restarts being deferred:');
 		foreach my $cont (sort @skipped_containers) {
 		    $ui->command(join(' ', '', @{ $conts{$cont} }));
 		}
@@ -988,7 +1164,7 @@ if(defined($opt_l) && !$uid) {
 	    my $o = 0;
 
 	    $ui->notice(__ 'Restarting containers...');
-	    $ui->query_conts(__('Containers to be restarted:'), $nrconf{defno}, \%conts, $nrconf{override_rc},
+	    $ui->query_conts(__('Containers to be restarted:'), $nrconf{defno}, \%conts, $nrconf{override_cont},
 			     sub {
 				 my $cont = shift;
 				 $ui->command(join(' ', '', @{ $conts{$cont} }));
@@ -998,6 +1174,7 @@ if(defined($opt_l) && !$uid) {
     }
 
     ## SESSIONS
+    $ui->vspace();
     # list and notify user sessions
     unless(scalar keys %sessions) {
 	$ui->notice(__ 'No user sessions are running outdated binaries.') unless($opt_b || $opt_m eq 'e');
@@ -1016,9 +1193,16 @@ if(defined($opt_l) && !$uid) {
 	}
 	if($opt_p) {
 	    my $count = sum map { scalar keys %{ $sessions{$_} } } keys %sessions;
-	    $nagios{ustr} = "$count (!)";
+	    $nagios{ustr} = $count;
 	    $nagios{uret} = $nrconf{q(nagios-status)}->{sessions};
 	    $nagios{uperf} = $count;
+
+        if($nagios{uret} == 1) {
+            $nagios{ustr} .= " (!)";
+        }
+        elsif($nagios{uret} == 2) {
+            $nagios{ustr} .= " (!!)";
+        }
 	}
 	unless($opt_p || $opt_b) {
 	    foreach my $uid (sort { ncmp(uid2name($a), uid2name($b)); } keys %sessions) {
@@ -1065,16 +1249,18 @@ if($opt_p) {
 	3 => q(UNKN),
 	);
     my ($ret) = reverse sort 
-	(($opt_k ? $nagios{kret} : ()),
+	(($opt_k ? $nagios{kret} : ()), ($opt_w ? $nagios{mret} : ()),
 	($opt_l ? ($nagios{sret}, $nagios{cret}, $nagios{uret}) : ()));
 
     print "$states{$ret} - ", join(', ',
 	       ($opt_k ? "Kernel: $nagios{kstr}" : ()),
+	       ($opt_w ? "Microcode: $nagios{mstr}" : ()),
 	       ($opt_l ? "Services: $nagios{sstr}" : ()),
 	       ($opt_l ? "Containers: $nagios{cstr}" : ()),
 	       ($opt_l ? "Sessions: $nagios{ustr}" : ()),
 	), '|', join(' ',
 	       ($opt_k ? "Kernel=$nagios{kperf};0;;0;2" : ()),
+	       ($opt_w ? "Microcode=$nagios{mperf};0;;0;1" : ()),
 	       ($opt_l ? "Services=$nagios{sperf};;0;0" : ()),
 	       ($opt_l ? "Containers=$nagios{cperf};;0;0" : ()),
 	       ($opt_l ? "Sessions=$nagios{uperf};0;;0" : ()),

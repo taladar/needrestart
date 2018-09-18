@@ -1,3 +1,186 @@
+needrestart (3.4) unstable; urgency=high
+
+  * Fixes:
+    - [uCode] Ignore broken microcode files (required for CentOS).
+      (github issue #123 by Marc Dequènes (Duck) @duck-rh)
+
+ -- Thomas Liske <thomas@fiasko-nw.net>  
+
+needrestart (3.3) unstable; urgency=high
+
+  * Fixes:
+    - [Core] Configuration file is ignored.
+      (Debian Bug#901999 by Andreas Schmidt <pi-c@arcor.de>)
+      (Debian Bug#902031 by Axel Beckert <abe@debian.org>)
+      (Debian Bug#902049 by Jon <nuxi@vault24.org>)
+      (github issue #121 by Sven Hartge @shartge)
+    - [Interp] Supress uninitalized value if abs_path fails.
+      (github issue #120 by Craig Andrews @candrews)
+
+ -- Thomas Liske <thomas@fiasko-nw.net>  Sun, 24 Jun 2018 13:32:47 +0200
+
+needrestart (3.2) unstable; urgency=medium
+
+  * Changes:
+    - [Kernel] Include /boot/kernel* while looking for linux
+      kernel images (required for Gentoo)
+      (Gentoo Bug 654958 by Klaus Ethgen)
+      (github pull request #113 by Craig Andrews @candrews)
+    - [Core] Do not restart ModemManager by default.
+      (github pull request #119 by @bodqhrohro)
+
+  * Fixes:
+    - [UI] Do not call GetTerminalSize if STDOUT is not a tty.
+      (github pull request #110 by Michael Scherer @mscherer)
+    - [uCode] Filter microcode for CPU signature and flags.
+      (github issue #112 by @mgondium)
+      (Debian Bug#900298 by Francois Mescam <fmescam@sd-123993.dedibox.fr>)
+    - [uCode] Assigning ucodehints a false value disables ucode
+      checks.
+      (github issue #115 by Johannes Kampmeyer @xschlef)
+    - [Hooks] Ignore non-executable init scripts.
+      (github issue #116 by Marc Dequènes (Duck) @duck-rh)
+    - [L10n] Fix typo in Russian localization.
+      (github pull request #118 by @bodqhrohro)
+    - [UI] Do not leak fd into restarted services.
+      (Debian Bug#893152 by Stephen Rothwell <debbugs@rothwell.id.au>)
+
+ -- Thomas Liske <thomas@fiasko-nw.net>  Sat, 16 Jun 2018 17:42:51 +0200
+
+needrestart (3.1) unstable; urgency=high
+
+  * Changes:
+    - [uCode] Handle microcode upgrades in early boot initrd images,
+      required at least on Arch Linux.
+      (github issue #106 by @Wuestengecko)
+
+  * Fixes:
+    - [uCode] Fix uninitialized value in batch mode.
+      (Debian Bug#891923 by Bob Proulx <bob@proulx.com>)
+      (github issue #105 by Evgenii Terechkov @evgkrsk)
+    - [uCode] Fix completely broken microcode update detection.
+      (github issue #108 by @Wuestengecko)
+    - [UI] Fix microcode revision placeholders in NeedRestart::UI::stdio.
+
+ -- Thomas Liske <thomas@fiasko-nw.net>  Thu, 29 Mar 2018 23:22:55 +0200
+
+needrestart (3.0) unstable; urgency=medium
+
+  * Features:
+    - [Core] Possible to suspend needrestart in apt-get hook using
+      the NEEDRESTART_SUSPEND environment variable.
+      (github issue #71 by Ludovic Gasc @GMLudo et. al.)
+    - [Core] Possible to override the configured restart mode using
+      the NEEDRESTART_MODE environment variable.
+      (Debian Bug#866105 by Marc Haber <mh+debian-bugs@zugschlus.de>)
+    - [uCode] Check for pending Intel microcode updates.
+      (Debian Bug#886445 by Paul Wise <pabs@debian.org>)
+  * Changes:
+    - [Core] Do not try to restart service units with RefuseManualStop=yes.
+      (github issue #75 by Marc Dequènes @duck-rh)
+    - [Kernel] Try to adopt RPM's version sorting to get most recent kernel.
+      (github issue #73 by Maximilian Gaß @mxey)
+    - [Core] Tune blacklist_mappings default setting to match on deleted maps.
+    - [UI] Respect verbosity in UI::stdio, just like UI::Debconf.
+      (github pull request #88 by @guillaume-uH57J9)
+    - [Core] Improve output formating.
+      (github issue #84 by Stavros Ntentos @stdedos)
+    - [Core] Improve container detection to skip kernel and microcode checks.
+  * Fixes:
+    - [Core] Makefile: Fix installation of restart.d/ scripts.
+      (Debian Bug#851866 by Sven Hartge <sven@svenhartge.de>)
+    - [Core] Fix warning in Perl 5.20.x, not triggered in 5.24.x
+      in needrestart.conf (Oil Runtime Compiler's JIT files).
+      (patch by Patrick Matthäi (Debian))
+    - [Core] Do not restart oneshot services.
+      (Debian Bug#862840 by Alan Jenkins <alan.christopher.jenkins@gmail.com>)
+    - [Core] Ignore rc-local.service.
+      (Debian Bug#852864 by Paul Wise <pabs@debian.org>)
+    - [Core] Do not restart libvirt by default.
+      (github issue #69 by Craig Andrews @candrews)
+    - [Interp/Perl] Add missing cwd restore before a return.
+      (github issues #55 and #70 Craig Andrews @candrews and Stefan Bühler @stbuehler)
+    - [Core] README.md: Fix spelling.
+      (github issue #74 by Edward Betts @EdwardBetts)
+    - [Core] Add bird to override.
+      (github issue #78 by Björn Lässig @Farom)
+    - [Interp/(Perl|Python)] Use absolute paths used to search the package
+      of a script file.
+      (github issue #79 by Christopher Odenbach @odenbach)
+    - [Hook] Use rpm -q --filesbypkg rather than rpmquery.
+      (github issue #81 by Sven Hartge @shartge)
+    - [CONT] Detect docker container ns running not on systemd.
+    - [CONT] Ignore processes running inside docker containers.
+      (github issue #80 by Christopher Odenbach @odenbach)
+    - [Core] Ignore special filename mappings used by recent versions of
+      KDE plasmashell.
+      (github issue #65 by @GoTeamAnt)
+      (Debian Bug#879091 by Paul Wise <pabs@debian.org>)
+    - [Core] Fix handling of library mappings if target does not exist.
+      (github issue #58 by @pigen)
+      (Debian Bug#878700 by Richard Hector <richard@walnut.gen.nz>)
+    - [Hook] Fix handling of multiarch packages.
+      (github issue #56 by @mayasd)
+    - [Interp] Ignore interpreter processes with unreachable root fs (i.e.
+      in different mnt ns).
+      (github issue #72 by Stefan Bühler @stbuehler)
+    - [Core] Add missing unnamed device major numbers (fix for OpenVZ).
+      (Debian Bug#876452 by Piotr Pańczyk <piotr.panczyk@assecobs.pl>)
+    - [UI] Do not call GetTerminalSize() if STDOUT is not a TTY.
+      (Debian Bug#859387 by by Paul Wise <pabs@debian.org>)
+      (github issues #85 and #86 by @guillaume-uH57J9)
+    - [UI] Fix switch from interactive to list mode if debconf is run
+      noninteractive.
+      (Debian Bug#876459 by Piotr Pańczyk <piotr.panczyk@assecobs.pl>)
+    - [man] Add documentation on restart mode if run non-interactive.
+      (Debian Bug#842512 by Antoine Beaupré <anarcat@debian.org>)
+    - [Core] Ignore some Java false positives (JNA, JFFI).
+      (github pull request #89 by Maximilian Gaß @mxey)
+      (github issue #60 by @ge-fa)
+    - [Core] Output NRPE message "root needed" on stdout.
+      (github pull request #91 by @nirgal)
+    - [Core] Use override_cont when querying containers.
+      (github pull request #94 by Nigel Kukard @nkukard)
+    - [Core] Do not restart docker by default.
+    - [Core] Fix typo in man page.
+      (Debian Bug#885448 by Paul Wise <pabs@debian.org>)
+    - [Interp] Fix perl warning if cwd is unreachable.
+      (github issue #99 by @glitsj16)
+    - [Hook] Replace remaining calls of rpmquery by rpm.
+      (github issue #100 by Matthias Hörmann @taladar)
+    - [Core] Fix additional unit detection in dbus restart handler.
+      (github issue #104 by Alexander Barton @alexbarton)
+
+ -- Thomas Liske <thomas@fiasko-nw.net>  Fri, 23 Feb 2018 13:38:46 +0100
+
+needrestart (2.11) unstable; urgency=medium
+
+  * Features:
+    - [Core] Allow special treatment to restart services (i.e. dbus).
+      (github issue #44 by @Vladimir-csp)
+    - [Cont] Support restarting LXD-based LXC containers.
+      (github issue #26 by James Johnston @JohnstonJ)
+    - [Core] New config option to enforce legacy session detection if systemd
+      is used without PAM integration.
+      (github issue #52 by @micw and Eric S. @Korni22)
+  * Fixes:
+    - [Core] Fix default config type for override_* settings.
+      (github issue #47 by @mphilipps)
+    - [Kernel] Ignore initrd filenames while looking for kernel image files.
+      (github issue #49 by Evgenii Terechkov @evgkrsk)
+    - [Kernel] Strip .img from version string when deducting the kernel
+      version from filename.
+      (github issue #49 by Evgenii Terechkov @evgkrsk)
+    - [Core] Fix wrong regex quotation in default configuration file.
+      (Debian Bug#844283 by Paul Wise <pabs@debian.org>)
+    - [Core] Add display-manager 'lxdm' to override.
+      (Debian Bug#845996 by Rodrigo Campos <rodrigo@sdfg.com.ar>)
+    - [Interp] Make paths when searching source files relative to the root
+      path of the process.
+      (github issue #54 by Tomasz Kontusz @ktosiek)
+
+ -- Thomas Liske <thomas@fiasko-nw.net>  Tue, 17 Jan 2017 15:59:36 +0100
+
 needrestart (2.10) unstable; urgency=medium
 
   * Features:

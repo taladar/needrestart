@@ -4,7 +4,7 @@
 #   Thomas Liske <thomas@fiasko-nw.net>
 #
 # Copyright Holder:
-#   2013 - 2015 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
+#   2013 - 2018 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
 #
 # License:
 #   This program is free software; you can redistribute it and/or modify
@@ -38,11 +38,12 @@ sub _announce {
     my $message = shift;
     my %vars = @_;
 
+    print "\n";
     $self->wprint(\*STDOUT, '', '', __x("Pending kernel upgrade!\n\nRunning kernel version:\n  {kversion}\n\nDiagnostics:\n  {message}\n\nRestarting the system to load the new kernel will not be handled automatically, so you should consider rebooting. [Return]\n",
 					 kversion => $vars{KVERSION},
 					 message => $message,
 		   ));
-    <STDIN>;
+    <STDIN> if (-t *STDIN && -t *STDOUT);
 }
 
 
@@ -76,17 +77,41 @@ You should consider rebooting!
 
 EHINT
 
-    <STDIN>;
+    <STDIN> if (-t *STDIN && -t *STDOUT);
+}
+
+
+sub announce_ucode {
+    my $self = shift;
+    my %vars = @_;
+
+    print "\n";
+    $self->wprint(\*STDOUT, '', '', __x("Pending processor microcode upgrade!\n\nDiagnostics:\n  The currently running processor microcode revision is {current} which is not the expected microcode revision {avail}.\n\nRestarting the system to load the new processor microcode will not be handled automatically, so you should consider rebooting. [Return]\n",
+			 current => $vars{CURRENT},
+			 avail => $vars{AVAIL},
+		   ));
+    <STDIN> if (-t *STDIN && -t *STDOUT);
 }
 
 
 sub notice($$) {
     my $self = shift;
     my $out = shift;
+
+    return unless($self->{verbosity});
+
     my $indent = ' ';
     $indent .= $1 if($out =~ /^(\s+)/);
 
     $self->wprint(\*STDOUT, '', $indent, "$out\n");
+}
+
+sub vspace {
+    my $self = shift;
+
+    return unless($self->{verbosity});
+
+    $self->SUPER::vspace(\*STDOUT);
 }
 
 
@@ -116,7 +141,7 @@ sub _query($$) {
 	    return $s;
 	}
 
-	$i = <STDIN>;
+	$i = <STDIN> if(-t *STDIN && -t *STDOUT);
 	unless(defined($i)) {
 	    $i = 'n';
 	    last;

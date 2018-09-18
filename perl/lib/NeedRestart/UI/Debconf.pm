@@ -4,7 +4,7 @@
 #   Thomas Liske <thomas@fiasko-nw.net>
 #
 # Copyright Holder:
-#   2013 - 2015 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
+#   2013 - 2018 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
 #
 # License:
 #   This program is free software; you can redistribute it and/or modify
@@ -113,6 +113,21 @@ sub announce_ehint {
     dcres( go );
 }
 
+sub announce_ucode {
+    my $self = shift;
+    my %vars = @_;
+    my $templ = 'needrestart/ui-ucode_announce';
+
+    foreach my $k (keys %vars) {
+        dcres( subst($templ, $k, $vars{$k}) );
+    }
+
+    dcres( fset($templ, 'seen', 0) );
+    dcres( settitle('needrestart/ui-ucode_title') );
+    dcres( input('critical', $templ) );
+    dcres( go );
+}
+
 
 sub notice {
     my $self = shift;
@@ -124,6 +139,14 @@ sub notice {
     $indent .= $1 if($out =~ /^(\s+)/);
 
     $self->wprint(\*STDERR, '', $indent, "$out\n");
+}
+
+sub vspace {
+    my $self = shift;
+
+    return unless($self->{verbosity});
+
+    $self->SUPER::vspace(\*STDERR);
 }
 
 
@@ -244,6 +267,22 @@ sub runcmd {
     $self->SUPER::runcmd(@_);
 
     close(STDOUT);
+}
+
+# Workaround for Debian Bug#893152
+#
+# Using Debconf leaks a fd to this module's source file. Since Perl seems
+# not to set O_CLOEXEC the fd keeps open if the Debconf package uses fork
+# to restart needrestart piped to Debconf. The FD will leak into restarted
+# daemons if using Sys-V init.
+foreach my $fn (</proc/self/fd/*>) {
+    my $dst = readlink($fn);
+
+    # check if the FD is the package source file
+    if ($dst && ($dst eq __FILE__) && $fn =~ /\/(\d+)$/) {
+        open(my $fh, "<&=", $1) || warn("$!\n");
+        close($fh);
+    }
 }
 
 1;

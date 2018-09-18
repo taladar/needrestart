@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # needrestart - Restart daemons after library updates.
 #
 # Authors:
@@ -13,22 +15,9 @@
 #   (at your option) any later version.
 #
 
-# Shell library for scripts in /etc/needrestart/notify.d/
-
-NOTIFYCONF='/etc/needrestart/notify.conf'
-GETTEXTLIB='/usr/bin/gettext.sh'
-export TEXTDOMAIN='needrestart-notify'
-
-if [ ! -r "$NOTIFYCONF" ]; then
-    echo "[$0] Unable to read $NOTIFYCONF - aborting!" 1>&2
-    exit 1;
+# enable xtrace if we should be verbose
+if [ "$NR_VERBOSE" = '1' ]; then
+    set -x
 fi
 
-# Load global config
-. "$NOTIFYCONF"
-
-# Load gettext shell library
-. "$GETTEXTLIB"
-
-# Get LANG of session
-export LANG=$(sed -z -n s/^LANG=//p "/proc/$NR_SESSPPID/environ")
+exec systemctl daemon-reexec

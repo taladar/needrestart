@@ -1,3 +1,23 @@
+Changes in 2.12
+===============
+
+docker containers
+-----------------
+
+Needrestart ignores processes within docker containers since there are no pending
+library updates within containers by design. Needrestart still detects docker
+containers to mitigate false positives.
+
+More information: README.Cont.md
+
+
+non-interactive runs
+--------------------
+
+If needrestart is configured to run in interactive mode but is run non-interactive
+(i.e. unattended-upgrades) it will fallback to list only mode.
+
+
 Changes in 2.1
 ==============
 

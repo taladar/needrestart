@@ -6,7 +6,7 @@
 #   Thomas Liske <thomas@fiasko-nw.net>
 #
 # Copyright Holder:
-#   2013 - 2015 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
+#   2013 - 2018 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
 #
 # License:
 #   This program is free software; you can redistribute it and/or modify
@@ -32,7 +32,7 @@ use Getopt::Std;
 use strict;
 use warnings;
 
-system("type rpmquery 1> /dev/null 2> /dev/null");
+system("type rpm 1> /dev/null 2> /dev/null");
 exit 0 if ($? != -1 && $? >> 8);
 
 our $opt_v;
@@ -54,7 +54,7 @@ sub fork_pipe(@) {
 }
 
 my $FN = shift || die "Usage: $0 <filename>\n";
-my $psearch = fork_pipe(qw(rpmquery --file), $FN);
+my $psearch = fork_pipe(qw(rpm -q --file), $FN);
 
 my @pkgs;
 while(<$psearch>) {
@@ -71,9 +71,10 @@ exit(0) unless($#pkgs > -1);
 foreach my $pkg (@pkgs) {
     print "PACKAGE|$pkg\n";
 
-    my $plist = fork_pipe(qw(rpmquery --filesbypkg), $pkg);
+    my $plist = fork_pipe(qw(rpm -q --filesbypkg), $pkg);
     while(<$plist>) {
-	print "RC|$2\n" if(m@^\S+\s+/etc(/rc\.d)?/init\.d/(.+)$@);
+        chomp;
+        print "RC|$2\n" if(m@^\S+\s+/etc(/rc\.d)?/init\.d/(.+)$@ && -x $_);
     }
     close($plist);
 }

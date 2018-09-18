@@ -6,7 +6,7 @@
 #   Thomas Liske <thomas@fiasko-nw.net>
 #
 # Copyright Holder:
-#   2013 - 2015 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
+#   2013 - 2018 (C) Thomas Liske [http://fiasko-nw.net/~thomas/]
 #
 # License:
 #   This program is free software; you can redistribute it and/or modify
@@ -65,7 +65,7 @@ while(<$psearch>) {
     next if(/^local diversion/);
     next unless(/:/);
 
-    next unless(/([^:]+): $FN$/);
+    next unless(/(\S+): $FN$/);
 
     push(@pkgs, $1);
 }
@@ -78,7 +78,8 @@ foreach my $pkg (@pkgs) {
 
     my $plist = fork_pipe(qw(dpkg-query --listfiles), $pkg);
     while(<$plist>) {
-	print "RC|$1\n" if(m@^/etc/init.d/(.+)$@);
+        chomp;
+        print "RC|$1\n" if(m@^/etc/init.d/(.+)$@ && -x $_);
     }
     close($plist);
 }
