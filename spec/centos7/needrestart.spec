@@ -1,5 +1,5 @@
 Name:           needrestart
-Version:        3.3
+Version:        3.4
 Release:        1%{?dist}
 Summary:        daemon restarter after library updates
 
