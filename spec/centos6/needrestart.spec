@@ -52,6 +52,10 @@ rm -rf $RPM_BUILD_ROOT
 /etc/needrestart/notify.d/400-notify-send
 /etc/needrestart/notify.d/600-mail 
 %doc /etc/needrestart/notify.d/README.needrestart
+%doc /etc/needrestart/restart.d/README.needrestart
+/etc/needrestart/restart.d/dbus.service
+/etc/needrestart/restart.d/systemd-manager
+/etc/needrestart/restart.d/sysv-init
 
 /usr/lib/needrestart
 %_libdir/perl5/perllocal.pod
@@ -59,6 +63,10 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/needrestart
 /usr/share/locale/de/LC_MESSAGES/needrestart-notify.mo
 /usr/share/locale/de/LC_MESSAGES/needrestart.mo
+/usr/share/locale/cs/LC_MESSAGES/needrestart-notify.mo
+/usr/share/locale/cs/LC_MESSAGES/needrestart.mo
+/usr/share/locale/ru/LC_MESSAGES/needrestart-notify.mo
+/usr/share/locale/ru/LC_MESSAGES/needrestart.mo
 /usr/share/perl5/vendor_perl/NeedRestart.pm
 /usr/share/perl5/vendor_perl/NeedRestart
 /usr/share/polkit-1/actions/net.fiasko-nw.needrestart.policy
