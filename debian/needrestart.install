@@ -1,0 +1,14 @@
+debian/tmp/usr/sbin/needrestart usr/sbin/
+debian/tmp/etc/needrestart/needrestart.conf etc/needrestart/
+debian/tmp/etc/needrestart/conf.d etc/needrestart/
+debian/tmp/etc/dpkg/dpkg.cfg.d/needrestart etc/dpkg/dpkg.cfg.d/
+debian/tmp/etc/apt/apt.conf.d/99needrestart etc/apt/apt.conf.d/
+debian/tmp/etc/needrestart/notify.d etc/needrestart/
+debian/tmp/usr/share/perl5 usr/share/
+debian/tmp/usr/share/needrestart usr/share/
+debian/tmp/usr/share/polkit-1/actions usr/share/polkit-1/
+debian/tmp/usr/lib/needrestart usr/lib/
+debian/reportbug/script usr/share/bug/needrestart/
+hooks/10-dpkg etc/needrestart/hook.d/
+hooks/20-rpm etc/needrestart/hook.d/
+hooks/90-none etc/needrestart/hook.d/
