@@ -1,3 +1,9 @@
+needrestart (3.4-1) unstable; urgency=medium
+
+  * New upstream release.
+
+ -- Maximilian Philipps <philipps@saltation.de>  Wed, 27 Feb 2019 13:10:57 +0100
+
 needrestart (3.3.1-1) unstable; urgency=medium
 
   * update upstream to 3.3
