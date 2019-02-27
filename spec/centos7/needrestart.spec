@@ -54,6 +54,8 @@ rm -rf $RPM_BUILD_ROOT
 /usr/share/locale/de/LC_MESSAGES/needrestart.mo
 /usr/share/locale/ru/LC_MESSAGES/needrestart-notify.mo
 /usr/share/locale/ru/LC_MESSAGES/needrestart.mo
+/usr/share/locale/cs/LC_MESSAGES/needrestart-notify.mo
+/usr/share/locale/cs/LC_MESSAGES/needrestart.mo
 /usr/share/perl5/vendor_perl/NeedRestart.pm
 /usr/share/perl5/vendor_perl/NeedRestart
 /usr/share/polkit-1/actions/net.fiasko-nw.needrestart.policy
